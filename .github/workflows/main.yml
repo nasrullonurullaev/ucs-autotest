@@ -36,9 +36,9 @@ jobs:
               \"size\": \"${SIZE}\",
               \"image\": \"${SNAPSHOT_ID}\",
               \"ipv6\": false,
-              \"monitoring\": false
+              \"monitoring\": false,
+              \"ssh_keys\": [${DO_SSH_KEY_ID}]
             }")
-
           echo "$RESPONSE"
 
           DROPLET_ID=$(echo "$RESPONSE" | jq -r '.droplet.id')
