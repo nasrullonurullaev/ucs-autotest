@@ -2,7 +2,7 @@ name: Deploy from DigitalOcean snapshot
 
 on:
   workflow_dispatch:
-    push:
+  push:
     branches:
       - main
 
