@@ -109,15 +109,12 @@ jobs:
           sshpass -p "$PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" <<'EOF'
-              set -euo pipefail
-
-              yes | univention-app install nextcloud
-
-              yes | univention-install univention-appcenter-dev
-              yes | univention-app dev-use-test-appcenter
-              yes | univention-app install onlyoffice-ds
-          EOF
-
+            "$USERNAME@$HOST" \
+            "set -euo pipefail && \
+             yes | univention-app install nextcloud && \
+             yes | univention-install univention-appcenter-dev && \
+             yes | univention-app dev-use-test-appcenter && \
+             yes | univention-app install onlyoffice-ds"
+             
       - name: Show IP
         run: echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
