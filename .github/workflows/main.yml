@@ -112,13 +112,13 @@ jobs:
           PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
         run: |
           set -euo pipefail
-
+      
           sshpass -p "$PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "$USERNAME@$HOST" \
             "set -euo pipefail && \
-             yes | univention-app install nextcloud && \
+             printf 'Administrator\n${PASSWORD}\n' | univention-app install nextcloud && \
              yes | univention-install univention-appcenter-dev && \
              yes | univention-app dev-use-test-appcenter && \
              yes | univention-app install onlyoffice-ds"
