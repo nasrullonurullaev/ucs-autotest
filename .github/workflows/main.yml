@@ -14,7 +14,13 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq sshpass
+          sudo apt-get install -y jq openssh-client
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
 
       - name: Create droplet from snapshot
         id: create
@@ -40,10 +46,11 @@ jobs:
               \"monitoring\": false,
               \"ssh_keys\": [${DO_SSH_KEY_ID}]
             }")
+
           echo "$RESPONSE"
 
-          DROPLET_ID=$(echo "$RESPONSE" | jq -r '.droplet.id')
-          if [ "$DROPLET_ID" = "null" ] || [ -z "$DROPLET_ID" ]; then
+          DROPLET_ID=$(echo "$RESPONSE" | jq -r '.droplet.id // empty')
+          if [ -z "$DROPLET_ID" ]; then
             echo "Failed to create droplet"
             exit 1
           fi
@@ -63,10 +70,10 @@ jobs:
               -H "Authorization: Bearer $DO_TOKEN" \
               "$DO_API/droplets/${DROPLET_ID}")
 
-            STATUS=$(echo "$RESPONSE" | jq -r '.droplet.status')
+            STATUS=$(echo "$RESPONSE" | jq -r '.droplet.status // empty')
             IP=$(echo "$RESPONSE" | jq -r '.droplet.networks.v4[]? | select(.type=="public") | .ip_address' | head -n1)
 
-            echo "Attempt $i: status=$STATUS ip=${IP:-none}"
+            echo "Attempt $i: status=${STATUS:-unknown} ip=${IP:-none}"
 
             if [ "$STATUS" = "active" ] && [ -n "${IP:-}" ]; then
               echo "ip=$IP" >> "$GITHUB_OUTPUT"
@@ -83,14 +90,18 @@ jobs:
         env:
           HOST: ${{ steps.wait.outputs.ip }}
           USERNAME: root
-          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
         run: |
           set -euo pipefail
 
           for i in {1..30}; do
-            if sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 "$USERNAME@$HOST" "echo SSH OK"; then
+            if ssh -i ~/.ssh/id_ed25519 \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=10 \
+              "$USERNAME@$HOST" "echo SSH OK"; then
               exit 0
             fi
+
             echo "SSH not ready yet, retry $i"
             sleep 10
           done
@@ -102,11 +113,10 @@ jobs:
         env:
           HOST: ${{ steps.wait.outputs.ip }}
           USERNAME: root
-          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sshpass -p "$PASSWORD" ssh \
+          ssh -i ~/.ssh/id_ed25519 \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "$USERNAME@$HOST" \
@@ -115,6 +125,7 @@ jobs:
              yes | univention-install univention-appcenter-dev && \
              yes | univention-app dev-use-test-appcenter && \
              yes | univention-app install onlyoffice-ds"
-             
+
       - name: Show IP
-        run: 'echo "Droplet IP: ${{ steps.wait.outputs.ip }}"'
+        run: |
+          echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
