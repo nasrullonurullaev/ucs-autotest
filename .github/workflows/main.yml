@@ -36,8 +36,7 @@ jobs:
               \"size\": \"${SIZE}\",
               \"image\": \"${SNAPSHOT_ID}\",
               \"ipv6\": false,
-              \"monitoring\": false,
-              \"tags\": [\"github-actions\", \"onlyoffice\"]
+              \"monitoring\": false
             }")
 
           echo "$RESPONSE"
