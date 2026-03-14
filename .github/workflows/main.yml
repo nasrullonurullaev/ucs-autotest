@@ -24,6 +24,7 @@ jobs:
           REGION: ${{ secrets.DO_REGION }}
           SIZE: ${{ secrets.DO_SIZE }}
           SNAPSHOT_ID: ${{ secrets.DO_SNAPSHOT_ID }}
+          DO_SSH_KEY_ID: ${{ secrets.DO_SSH_KEY_ID }
         run: |
           set -euo pipefail
 
