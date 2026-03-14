@@ -127,27 +127,30 @@ jobs:
               spawn univention-app install nextcloud
           
               expect {
-                "Username \\[Administrator\\]:" {
-                  send -- "Administrator\r"
+                "Do you agree \\[y/N\\]?" {
+                  send -- "y\r"
                   exp_continue
                 }
-                "Password for Administrator:" {
-                  send -- "$env(UCS_ADMIN_PASSWORD)\r"
+                "Press \\[ENTER\\] to continue" {
+                  send -- "\r"
                   exp_continue
                 }
                 eof
               }
+          
+              catch wait result
+              set exit_status [lindex \$result 3]
+              exit \$exit_status
               EOT
           
-              export UCS_ADMIN_PASSWORD='${PASSWORD}'
-          
               expect /root/install-nextcloud.expect
+          
+              univention-app info nextcloud || true
           
               yes | univention-install univention-appcenter-dev
               yes | univention-app dev-use-test-appcenter
               yes | univention-app install onlyoffice-ds
               EOF
-              
       - name: Show IP
         run: |
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
