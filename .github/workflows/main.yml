@@ -105,52 +105,62 @@ jobs:
           echo "SSH did not become available"
           exit 1
 
-          - name: Install apps over SSH
-            env:
-              HOST: ${{ steps.wait.outputs.ip }}
-              USERNAME: root
-              PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-            run: |
-              set -euo pipefail
-          
-              sshpass -p "$PASSWORD" ssh \
-                -o StrictHostKeyChecking=no \
-                -o UserKnownHostsFile=/dev/null \
-                "$USERNAME@$HOST" /bin/bash <<EOF
-              set -euo pipefail
-          
-              apt-get update
-              apt-get install -y expect
-          
-              cat >/root/install-nextcloud.expect <<'EOT'
-              set timeout -1
-              spawn univention-app install nextcloud
-          
-              expect {
-                "Do you agree \\[y/N\\]?" {
-                  send -- "y\r"
-                  exp_continue
-                }
-                "Press \\[ENTER\\] to continue" {
-                  send -- "\r"
-                  exp_continue
-                }
-                eof
-              }
-          
-              catch wait result
-              set exit_status [lindex \$result 3]
-              exit \$exit_status
-              EOT
-          
-              expect /root/install-nextcloud.expect
-          
-              univention-app info nextcloud || true
-          
-              yes | univention-install univention-appcenter-dev
-              yes | univention-app dev-use-test-appcenter
-              yes | univention-app install onlyoffice-ds
-              EOF
+      - name: Install apps over SSH
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -p "$PASSWORD" ssh -tt \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" <<EOF
+          set -euo pipefail
+
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+          apt-get install -y expect
+
+          cat >/root/install-nextcloud.expect <<'EOT'
+          set timeout -1
+          log_user 1
+          spawn univention-app install nextcloud
+
+          expect {
+            "Do you agree \\[y/N\\]?" {
+              send -- "y\r"
+              exp_continue
+            }
+            "Press \\[ENTER\\] to continue" {
+              send -- "\r"
+              exp_continue
+            }
+            eof
+          }
+
+          catch wait result
+          set exit_status [lindex \$result 3]
+          exit \$exit_status
+          EOT
+
+          expect /root/install-nextcloud.expect
+
+          echo "===== nextcloud info ====="
+          univention-app info nextcloud || true
+
+          if ! univention-app info nextcloud 2>/dev/null | grep -Eiq 'Status: installed|installed: true'; then
+            echo "Nextcloud was not installed successfully"
+            exit 1
+          fi
+
+          yes | univention-install univention-appcenter-dev
+          yes | univention-app dev-use-test-appcenter
+          yes | univention-app install onlyoffice-ds
+          EOF
+
       - name: Show IP
         run: |
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
