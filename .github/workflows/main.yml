@@ -156,7 +156,7 @@ jobs:
             -o UserKnownHostsFile=/dev/null \
             "$USERNAME@$HOST" \
             "set -euo pipefail; \
-             timeout 1800 univention-app dev-use-test-appcenter --noninteractive"
+             univention-app dev-use-test-appcenter"
 
       - name: Install ONLYOFFICE Docs
         env:
