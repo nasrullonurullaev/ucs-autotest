@@ -138,6 +138,10 @@ jobs:
             echo "Nextcloud was not installed successfully"
             exit 1
           fi
+
+          yes | univention-install univention-appcenter-dev
+          yes | univention-app dev-use-test-appcenter
+          yes | univention-app install onlyoffice-ds
           EOF
 
       - name: Show IP
