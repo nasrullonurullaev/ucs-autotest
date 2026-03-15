@@ -105,44 +105,120 @@ jobs:
           echo "SSH did not become available"
           exit 1
 
-      - name: Install apps over SSH
+      - name: Warm up UCS
         env:
           HOST: ${{ steps.wait.outputs.ip }}
           USERNAME: root
           PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
         run: |
           set -euo pipefail
-      
+
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" /bin/bash -lc "
+              set -euo pipefail
+              echo 'Waiting 120 seconds for UCS services...'
+              sleep 120
+              echo 'Checking DNS...'
+              getent hosts updates.software-univention.de || true
+            "
+
+      - name: Install Nextcloud
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" /bin/bash -lc "
+              set -euo pipefail
+
+              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd
+              chmod 600 /root/ucs_admin.pwd
+
+              timeout 3600 univention-app install nextcloud \
+                --noninteractive \
+                --username Administrator \
+                --pwdfile /root/ucs_admin.pwd
+
+              echo '===== nextcloud info ====='
+              univention-app info nextcloud || true
+            "
+
+      - name: Verify Nextcloud
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" /bin/bash -lc "
+              set -euo pipefail
+              if ! univention-app info nextcloud 2>/dev/null | grep -Eiq 'Status: installed|installed: true'; then
+                echo 'Nextcloud was not installed successfully'
+                univention-app info nextcloud || true
+                exit 1
+              fi
+            "
+
+      - name: Install appcenter dev
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
           sshpass -p "$PASSWORD" ssh -tt \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" <<EOF
-          set -euo pipefail
-      
-          echo "Waiting 120 seconds for UCS services..."
-          sleep 120
-      
-          printf '%s' "$PASSWORD" > /root/ucs_admin.pwd
-          chmod 600 /root/ucs_admin.pwd
-      
-          echo "Installing Nextcloud in non-interactive mode..."
-          univention-app install nextcloud \
-            --noninteractive \
-            --username Administrator \
-            --pwdfile /root/ucs_admin.pwd
-      
-          echo "===== nextcloud info ====="
-          univention-app info nextcloud || true
-      
-          if ! univention-app info nextcloud 2>/dev/null | grep -Eiq 'Status: installed|installed: true'; then
-            echo "Nextcloud was not installed successfully"
-            exit 1
-          fi
+            "$USERNAME@$HOST" /bin/bash -lc "
+              set -euo pipefail
+              yes | univention-install univention-appcenter-dev
+            "
 
-          yes | univention-install univention-appcenter-dev
-          yes | univention-app dev-use-test-appcenter
-          yes | univention-app install onlyoffice-ds
-          EOF
+      - name: Enable test appcenter
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -p "$PASSWORD" ssh -tt \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" /bin/bash -lc "
+              set -euo pipefail
+              yes | univention-app dev-use-test-appcenter
+            "
+
+      - name: Install ONLYOFFICE Docs
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" /bin/bash -lc "
+              set -euo pipefail
+              timeout 3600 univention-app install onlyoffice-ds --noninteractive
+              echo '===== onlyoffice-ds info ====='
+              univention-app info onlyoffice-ds || true
+            "
 
       - name: Show IP
         run: |
