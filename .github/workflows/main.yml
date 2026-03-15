@@ -116,37 +116,31 @@ jobs:
           sshpass -p "$PASSWORD" ssh -tt \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" <<EOF
+            "$USERNAME@$HOST" <<'EOF'
           set -euo pipefail
 
-          export DEBIAN_FRONTEND=noninteractive
+          echo "Waiting for DNS..."
+          for i in $(seq 1 60); do
+            if getent hosts updates.software-univention.de >/dev/null 2>&1; then
+              echo "DNS is ready"
+              break
+            fi
+            echo "DNS not ready yet, retry $i"
+            sleep 10
+          done
 
-          apt-get update
-          apt-get install -y expect
+          if ! getent hosts updates.software-univention.de >/dev/null 2>&1; then
+            echo "DNS is still not working"
+            cat /etc/resolv.conf || true
+            exit 1
+          fi
 
-          cat >/root/install-nextcloud.expect <<'EOT'
-          set timeout -1
-          log_user 1
-          spawn univention-app install nextcloud
-
-          expect {
-            "Do you agree \\[y/N\\]?" {
-              send -- "y\r"
-              exp_continue
-            }
-            "Press \\[ENTER\\] to continue" {
-              send -- "\r"
-              exp_continue
-            }
-            eof
-          }
-
-          catch wait result
-          set exit_status [lindex \$result 3]
-          exit \$exit_status
-          EOT
-
-          expect /root/install-nextcloud.expect
+          echo "Installing Nextcloud..."
+          {
+            printf 'y\n'
+            sleep 1
+            printf '\n'
+          } | univention-app install nextcloud
 
           echo "===== nextcloud info ====="
           univention-app info nextcloud || true
