@@ -135,49 +135,44 @@ jobs:
           sshpass -p "$PASSWORD" ssh \
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" /bin/bash -lc "
-              set -euo pipefail
+            "$USERNAME@$HOST" \
+            "set -euo pipefail; \
+             sleep 120; \
+             printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
+             chmod 600 /root/ucs_admin.pwd; \
+             timeout 3600 univention-app install nextcloud --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
+             univention-app info || true"
 
-              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd
-              chmod 600 /root/ucs_admin.pwd
+      - name: Enable test appcenter
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
 
-              timeout 3600 univention-app install nextcloud \
-                --noninteractive \
-                --username Administrator \
-                --pwdfile /root/ucs_admin.pwd
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" \
+            "set -euo pipefail; \
+             timeout 1800 univention-app dev-use-test-appcenter --noninteractive"
 
-              echo '===== nextcloud info ====='
-              univention-app info nextcloud || true
-            "
+      - name: Install ONLYOFFICE Docs
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
 
-          - name: Enable test appcenter
-            env:
-              HOST: ${{ steps.wait.outputs.ip }}
-              USERNAME: root
-              PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-            run: |
-              set -euo pipefail
-          
-              sshpass -p "$PASSWORD" ssh \
-                -o StrictHostKeyChecking=no \
-                -o UserKnownHostsFile=/dev/null \
-                "$USERNAME@$HOST" \
-                "set -euo pipefail; univention-app dev-use-test-appcenter --noninteractive"
-
-            - name: Install ONLYOFFICE Docs
-              env:
-                HOST: ${{ steps.wait.outputs.ip }}
-                USERNAME: root
-                PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-              run: |
-                set -euo pipefail
-            
-                sshpass -p "$PASSWORD" ssh \
-                  -o StrictHostKeyChecking=no \
-                  -o UserKnownHostsFile=/dev/null \
-                  "$USERNAME@$HOST" \
-                  "set -euo pipefail; timeout 3600 univention-app install onlyoffice-ds --noninteractive"
-
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" \
+            "set -euo pipefail; \
+             timeout 3600 univention-app install onlyoffice-ds --noninteractive; \
+             univention-app info || true"
       - name: Show IP
         run: |
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
