@@ -171,8 +171,11 @@ jobs:
             -o UserKnownHostsFile=/dev/null \
             "$USERNAME@$HOST" \
             "set -euo pipefail; \
-             timeout 3600 univention-app install onlyoffice-ds --noninteractive; \
+             printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
+             chmod 600 /root/ucs_admin.pwd; \
+             timeout 3600 univention-app install onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
              univention-app info || true"
+             
       - name: Show IP
         run: |
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
