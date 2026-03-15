@@ -150,39 +150,33 @@ jobs:
               univention-app info nextcloud || true
             "
 
-      - name: Enable test appcenter
-        env:
-          HOST: ${{ steps.wait.outputs.ip }}
-          USERNAME: root
-          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          sshpass -p "$PASSWORD" ssh -tt \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" /bin/bash -lc "
+          - name: Enable test appcenter
+            env:
+              HOST: ${{ steps.wait.outputs.ip }}
+              USERNAME: root
+              PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+            run: |
               set -euo pipefail
-              yes | univention-app dev-use-test-appcenter
-            "
+          
+              sshpass -p "$PASSWORD" ssh \
+                -o StrictHostKeyChecking=no \
+                -o UserKnownHostsFile=/dev/null \
+                "$USERNAME@$HOST" \
+                "set -euo pipefail; univention-app dev-use-test-appcenter --noninteractive"
 
-      - name: Install ONLYOFFICE Docs
-        env:
-          HOST: ${{ steps.wait.outputs.ip }}
-          USERNAME: root
-          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          sshpass -p "$PASSWORD" ssh \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" /bin/bash -lc "
-              set -euo pipefail
-              timeout 3600 univention-app install onlyoffice-ds --noninteractive
-              echo '===== onlyoffice-ds info ====='
-              univention-app info onlyoffice-ds || true
-            "
+            - name: Install ONLYOFFICE Docs
+              env:
+                HOST: ${{ steps.wait.outputs.ip }}
+                USERNAME: root
+                PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+              run: |
+                set -euo pipefail
+            
+                sshpass -p "$PASSWORD" ssh \
+                  -o StrictHostKeyChecking=no \
+                  -o UserKnownHostsFile=/dev/null \
+                  "$USERNAME@$HOST" \
+                  "set -euo pipefail; timeout 3600 univention-app install onlyoffice-ds --noninteractive"
 
       - name: Show IP
         run: |
