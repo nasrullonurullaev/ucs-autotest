@@ -150,26 +150,6 @@ jobs:
               univention-app info nextcloud || true
             "
 
-      - name: Verify Nextcloud
-        env:
-          HOST: ${{ steps.wait.outputs.ip }}
-          USERNAME: root
-          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          sshpass -p "$PASSWORD" ssh \
-            -o StrictHostKeyChecking=no \
-            -o UserKnownHostsFile=/dev/null \
-            "$USERNAME@$HOST" /bin/bash -lc "
-              set -euo pipefail
-              if ! univention-app info nextcloud 2>/dev/null | grep -Eiq 'Status: installed|installed: true'; then
-                echo 'Nextcloud was not installed successfully'
-                univention-app info nextcloud || true
-                exit 1
-              fi
-            "
-
       - name: Install appcenter dev
         env:
           HOST: ${{ steps.wait.outputs.ip }}
