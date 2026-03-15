@@ -126,7 +126,7 @@ jobs:
           chmod 600 /root/ucs_admin.pwd
       
           echo "Installing Nextcloud in non-interactive mode..."
-          timeout 3600 univention-app install nextcloud \
+          univention-app install nextcloud \
             --noninteractive \
             --username Administrator \
             --pwdfile /root/ucs_admin.pwd
