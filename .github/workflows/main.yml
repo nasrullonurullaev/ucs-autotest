@@ -215,7 +215,7 @@ jobs:
              sleep 180; \
              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
              chmod 600 /root/ucs_admin.pwd; \
-             timeout 3600 univention-app update onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
+             timeout 3600 univention-app upgrade onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
              univention-app info || true"
 
       - name: Wait for web app to be ready
