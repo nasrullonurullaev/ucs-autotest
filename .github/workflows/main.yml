@@ -176,6 +176,41 @@ jobs:
              timeout 3600 univention-app install onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
              univention-app info || true"
              
+      - name: Wait for web app to be ready
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+        run: |
+          set -euo pipefail
+
+          for i in {1..60}; do
+            if curl -k -I --max-time 10 "https://$HOST" >/dev/null 2>&1; then
+              echo "Web app is reachable"
+              exit 0
+            fi
+            echo "Web app is not ready yet, retry $i"
+            sleep 10
+          done
+
+          echo "Web app did not become ready in time"
+          exit 1
+
+      - name: Run Playwright integration test
+        env:
+          TEST_HOST: ${{ steps.wait.outputs.ip }}
+          DROPLET_PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          npm run test:integration
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
       - name: Show IP
         run: |
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
