@@ -37,23 +37,36 @@ test.setTimeout(0);
 test('Create and save ONLYOFFICE files in Nextcloud', async ({ page }) => {
   logProgress('Test started');
 
-  await login(page);
-  await openOnlyofficeSettings(page);
-  await configureDocumentServer(page, DOCUMENT_SERVER_URL);
+  await test.step('Login to Nextcloud', async () => {
+    await login(page);
+  });
 
-  await openFiles(page);
+  await test.step('Open ONLYOFFICE settings and configure document server', async () => {
+    await openOnlyofficeSettings(page);
+    await configureDocumentServer(page, DOCUMENT_SERVER_URL);
+  });
 
-  await createAndOpenFile(page, 'New document');
-  await writeDocumentText(page);
-  await closeEditorAndReturnToFiles(page);
+  await test.step('Open Files app', async () => {
+    await openFiles(page);
+  });
 
-  await createAndOpenFile(page, 'New presentation');
-  await writePresentationText(page);
-  await closeEditorAndReturnToFiles(page);
+  await test.step('Create and edit document', async () => {
+    await createAndOpenFile(page, 'New document');
+    await writeDocumentText(page);
+    await closeEditorAndReturnToFiles(page);
+  });
 
-  await createAndOpenFile(page, 'New spreadsheet');
-  await writeSpreadsheetText(page);
-  await closeEditorAndReturnToFiles(page);
+  await test.step('Create and edit presentation', async () => {
+    await createAndOpenFile(page, 'New presentation');
+    await writePresentationText(page);
+    await closeEditorAndReturnToFiles(page);
+  });
+
+  await test.step('Create and edit spreadsheet', async () => {
+    await createAndOpenFile(page, 'New spreadsheet');
+    await writeSpreadsheetText(page);
+    await closeEditorAndReturnToFiles(page);
+  });
 
   logProgress('Test finished successfully');
 });
