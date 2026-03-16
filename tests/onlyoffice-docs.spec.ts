@@ -33,6 +33,7 @@ test.use({
 });
 
 test.setTimeout(0);
+test.describe.configure({ retries: 0 });
 
 test('Create and save ONLYOFFICE files in Nextcloud', async ({ page }) => {
   logProgress('Test started');
