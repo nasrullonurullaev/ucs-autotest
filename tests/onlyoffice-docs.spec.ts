@@ -37,39 +37,52 @@ test.setTimeout(0);
 test('Create and save ONLYOFFICE files in Nextcloud', async ({ page }) => {
   logProgress('Test started');
 
-  await test.step('Login to Nextcloud', async () => {
-    await login(page);
-  });
+  try {
+    await test.step('Login to Nextcloud', async () => {
+      await login(page);
+    });
 
-  await test.step('Open ONLYOFFICE settings and configure document server', async () => {
-    await openOnlyofficeSettings(page);
-    await configureDocumentServer(page, DOCUMENT_SERVER_URL);
-  });
+    await test.step('Open ONLYOFFICE settings and configure document server', async () => {
+      await openOnlyofficeSettings(page);
+      await configureDocumentServer(page, DOCUMENT_SERVER_URL);
+    });
 
-  await test.step('Open Files app', async () => {
-    await openFiles(page);
-  });
+    await test.step('Open Files app', async () => {
+      await openFiles(page);
+    });
 
-  await test.step('Create and edit document', async () => {
-    await createAndOpenFile(page, 'New document');
-    await writeDocumentText(page);
-    await closeEditorAndReturnToFiles(page);
-  });
+    await test.step('Create and edit document', async () => {
+      await createAndOpenFile(page, 'New document');
+      await writeDocumentText(page);
+      await closeEditorAndReturnToFiles(page);
+    });
 
-  await test.step('Create and edit presentation', async () => {
-    await createAndOpenFile(page, 'New presentation');
-    await writePresentationText(page);
-    await closeEditorAndReturnToFiles(page);
-  });
+    await test.step('Create and edit presentation', async () => {
+      await createAndOpenFile(page, 'New presentation');
+      await writePresentationText(page);
+      await closeEditorAndReturnToFiles(page);
+    });
 
-  await test.step('Create and edit spreadsheet', async () => {
-    await createAndOpenFile(page, 'New spreadsheet');
-    await writeSpreadsheetText(page);
-    await closeEditorAndReturnToFiles(page);
-  });
+    await test.step('Create and edit spreadsheet', async () => {
+      await createAndOpenFile(page, 'New spreadsheet');
+      await writeSpreadsheetText(page);
+      await closeEditorAndReturnToFiles(page);
+    });
 
-  logProgress('Test finished successfully');
+    logProgress('Test finished successfully');
+  } catch (error) {
+    logProgress(`Test failed: ${getErrorMessage(error)}`);
+    throw error;
+  }
 });
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
 
 async function clickWithDelay(locator: Locator): Promise<void> {
   await locator.click();
@@ -174,8 +187,20 @@ async function configureDocumentServer(
 
   const okButton = page.getByRole('button', { name: 'Ok' });
   if (await okButton.isVisible().catch(() => false)) {
+    const dialog = page.getByRole('dialog').first();
+    const dialogText = (await dialog.textContent().catch(() => null))?.trim();
+
+    logProgress(
+      `ONLYOFFICE configuration save failed${dialogText ? `: ${dialogText}` : ''}`
+    );
     await clickWithDelay(okButton);
+
+    throw new Error(
+      `Failed to save ONLYOFFICE configuration${dialogText ? `: ${dialogText}` : ''}`
+    );
   }
+
+  logProgress('ONLYOFFICE configuration saved without visible error dialog');
 }
 
 async function openFiles(page: Page): Promise<void> {
