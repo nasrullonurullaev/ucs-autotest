@@ -11,6 +11,21 @@ jobs:
       DO_API: https://api.digitalocean.com/v2
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Install tools
         run: |
           sudo apt-get update
@@ -175,7 +190,7 @@ jobs:
              chmod 600 /root/ucs_admin.pwd; \
              timeout 3600 univention-app install onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
              univention-app info || true"
-             
+
       - name: Wait for web app to be ready
         env:
           HOST: ${{ steps.wait.outputs.ip }}
@@ -199,7 +214,7 @@ jobs:
           TEST_HOST: ${{ steps.wait.outputs.ip }}
           DROPLET_PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
         run: |
-          npm run test:integration
+          npm run test:e2e
 
       - name: Upload Playwright report
         if: always()
