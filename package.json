@@ -1,0 +1,4 @@
+"scripts": {
+  "test": "playwright test",
+  "test:e2e": "playwright test tests/onlyoffice-docs.spec.ts"
+}
