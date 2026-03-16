@@ -1,4 +1,14 @@
-"scripts": {
-  "test": "playwright test",
-  "test:e2e": "playwright test tests/onlyoffice-docs.spec.ts"
+{
+  "name": "onlyoffice-playwright-tests",
+  "version": "1.0.0",
+  "description": "ONLYOFFICE integration tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:e2e": "playwright test tests/onlyoffice-docs.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^24.3.0"
+  }
 }
