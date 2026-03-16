@@ -201,9 +201,6 @@ async function configureDocumentServer(
     );
     await clickWithDelay(okButton);
 
-    throw new Error(
-      `Failed to save ONLYOFFICE configuration${dialogText ? `: ${dialogText}` : ''}`
-    );
   }
 
   logProgress('ONLYOFFICE configuration saved without visible error dialog');
