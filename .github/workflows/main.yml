@@ -143,20 +143,20 @@ jobs:
              timeout 3600 univention-app install nextcloud --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
              univention-app info || true"
 
-      # - name: Enable test appcenter
-      #   env:
-      #     HOST: ${{ steps.wait.outputs.ip }}
-      #     USERNAME: root
-      #     PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
-      #   run: |
-      #     set -euo pipefail
+      - name: Enable test appcenter
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
 
-      #     sshpass -p "$PASSWORD" ssh \
-      #       -o StrictHostKeyChecking=no \
-      #       -o UserKnownHostsFile=/dev/null \
-      #       "$USERNAME@$HOST" \
-      #       "set -euo pipefail; \
-      #        univention-app dev-use-test-appcenter"
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" \
+            "set -euo pipefail; \
+             univention-app dev-use-test-appcenter"
 
       - name: Install ONLYOFFICE Docs
         env:
