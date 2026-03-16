@@ -71,7 +71,7 @@ async function login(page: Page): Promise<void> {
   ]);
 
   await page.waitForTimeout(CLICK_DELAY);
-
+  await page.getByRole('button', { name: 'Close' }).click();
   await expect(
     page.getByRole('button', { name: 'Settings menu' })
   ).toBeVisible();
