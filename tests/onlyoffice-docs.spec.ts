@@ -21,6 +21,11 @@ const USERNAME = 'Administrator';
 const CLICK_DELAY = 10_000;
 const EDITOR_OPEN_DELAY = 50_000;
 
+function logProgress(message: string): void {
+  const timestamp = new Date().toISOString();
+  console.log(`[ONLYOFFICE E2E] ${timestamp} - ${message}`);
+}
+
 test.use({
   ignoreHTTPSErrors: true,
   actionTimeout: 0,
@@ -30,6 +35,8 @@ test.use({
 test.setTimeout(0);
 
 test('Create and save ONLYOFFICE files in Nextcloud', async ({ page }) => {
+  logProgress('Test started');
+
   await login(page);
   await openOnlyofficeSettings(page);
   await configureDocumentServer(page, DOCUMENT_SERVER_URL);
@@ -47,6 +54,8 @@ test('Create and save ONLYOFFICE files in Nextcloud', async ({ page }) => {
   await createAndOpenFile(page, 'New spreadsheet');
   await writeSpreadsheetText(page);
   await closeEditorAndReturnToFiles(page);
+
+  logProgress('Test finished successfully');
 });
 
 async function clickWithDelay(locator: Locator): Promise<void> {
@@ -55,6 +64,7 @@ async function clickWithDelay(locator: Locator): Promise<void> {
 }
 
 async function login(page: Page): Promise<void> {
+  logProgress('Opening Nextcloud login page');
   await page.goto(
     `${NEXTCLOUD_URL}/apps/user_saml/saml/selectUserBackEnd?redirectUrl=`,
     { waitUntil: 'domcontentloaded' }
@@ -78,6 +88,7 @@ async function login(page: Page): Promise<void> {
 }
 
 async function openOnlyofficeSettings(page: Page): Promise<void> {
+  logProgress('Opening ONLYOFFICE settings page in Nextcloud admin');
   await expect(
     page.getByRole('button', { name: 'Settings menu' })
   ).toBeVisible();
@@ -113,6 +124,7 @@ async function configureDocumentServer(
   page: Page,
   documentServerUrl: string
 ): Promise<void> {
+  logProgress(`Configuring document server URL: ${documentServerUrl}`);
   const dsInput = page.getByRole('textbox', {
     name: 'https://<documentserver>/',
   });
@@ -154,6 +166,7 @@ async function configureDocumentServer(
 }
 
 async function openFiles(page: Page): Promise<void> {
+  logProgress('Opening Files app');
   const filesLink = page.getByRole('link', { name: 'Files' }).first();
 
   if (await filesLink.isVisible().catch(() => false)) {
@@ -172,6 +185,7 @@ async function createAndOpenFile(
   page: Page,
   menuItemName: string
 ): Promise<void> {
+  logProgress(`Creating file from menu item: ${menuItemName}`);
   await expect(page.getByRole('button', { name: 'New' })).toBeVisible();
   await clickWithDelay(page.getByRole('button', { name: 'New' }));
 
@@ -190,6 +204,7 @@ async function createAndOpenFile(
 }
 
 async function writeDocumentText(page: Page): Promise<void> {
+  logProgress('Writing text into document');
   const editorFrame = page.frameLocator('iframe');
 
   await editorFrame.locator('body').click();
@@ -199,6 +214,7 @@ async function writeDocumentText(page: Page): Promise<void> {
 }
 
 async function writePresentationText(page: Page): Promise<void> {
+  logProgress('Writing text into presentation');
   const editorFrame = page.frameLocator('iframe');
 
   await editorFrame.locator('body').click();
@@ -208,6 +224,7 @@ async function writePresentationText(page: Page): Promise<void> {
 }
 
 async function writeSpreadsheetText(page: Page): Promise<void> {
+  logProgress('Writing text into spreadsheet');
   const editorFrame = page.frameLocator('iframe');
 
   await editorFrame.locator('body').click();
@@ -220,6 +237,7 @@ async function writeSpreadsheetText(page: Page): Promise<void> {
 }
 
 async function saveIfAvailable(page: Page): Promise<void> {
+  logProgress('Trying to save file if Save button is available');
   const saveButton = page.getByRole('button', { name: /Save/i });
 
   if (await saveButton.isVisible().catch(() => false)) {
@@ -229,6 +247,7 @@ async function saveIfAvailable(page: Page): Promise<void> {
 }
 
 async function closeEditorAndReturnToFiles(page: Page): Promise<void> {
+  logProgress('Closing editor and returning to files list');
   const closeButton = page.getByRole('button', { name: 'Close editor' });
 
   if (await closeButton.isVisible().catch(() => false)) {
