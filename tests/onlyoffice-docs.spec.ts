@@ -2,6 +2,7 @@ import { test, expect, Page, Locator } from '@playwright/test';
 
 const HOST = process.env.TEST_HOST;
 const PASSWORD = process.env.DROPLET_PASSWORD;
+const SECRET_KEY = process.env.ONLYOFFICE_SECRET_KEY ?? 'secret';
 
 if (!HOST) {
   throw new Error('TEST_HOST is not defined');
@@ -19,7 +20,10 @@ const USERNAME = 'Administrator';
 
 
 const CLICK_DELAY = 10_000;
-const EDITOR_OPEN_DELAY = 50_000;
+const UI_TIMEOUT = 60_000;
+const EDITOR_READY_TIMEOUT = 180_000;
+const SAVE_SETTLE_TIMEOUT = 45_000;
+const TEST_TIMEOUT = 20 * 60_000;
 
 function logProgress(message: string): void {
   const timestamp = new Date().toISOString();
@@ -28,11 +32,11 @@ function logProgress(message: string): void {
 
 test.use({
   ignoreHTTPSErrors: true,
-  actionTimeout: 0,
-  navigationTimeout: 0,
+  actionTimeout: UI_TIMEOUT,
+  navigationTimeout: UI_TIMEOUT,
 });
 
-test.setTimeout(0);
+test.setTimeout(TEST_TIMEOUT);
 test.describe.configure({ retries: 0 });
 
 test('Create and save ONLYOFFICE files in Nextcloud', async ({ page }) => {
@@ -85,8 +89,13 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isSuccessOnlyofficeInfoDialog(dialogText: string): boolean {
+  return /successfully updated/i.test(dialogText);
+}
+
+
 async function clickWithDelay(locator: Locator): Promise<void> {
-  await locator.click();
+  await locator.click({ timeout: UI_TIMEOUT });
   await locator.page().waitForTimeout(CLICK_DELAY);
 }
 
@@ -170,6 +179,11 @@ async function configureDocumentServer(
 
   await dsInput.fill(documentServerUrl);
 
+  const secretKeyInput = page.getByPlaceholder('Secret key (leave blank to disable)').first();
+  if (await secretKeyInput.isVisible().catch(() => false)) {
+    await secretKeyInput.fill(SECRET_KEY);
+  }
+
   const insecureCheckbox = page.getByRole('checkbox', {
     name: 'Disable certificate verification (insecure)',
   });
@@ -191,19 +205,28 @@ async function configureDocumentServer(
   await expect(saveAddressButton).toBeEnabled();
   await clickWithDelay(saveAddressButton);
 
-  const okButton = page.getByRole('button', { name: 'Ok' });
-  if (await okButton.isVisible().catch(() => false)) {
-    const dialog = page.getByRole('dialog').first();
-    const dialogText = (await dialog.textContent().catch(() => null))?.trim();
+  const dialog = page.getByRole('dialog').first();
+  if (await dialog.isVisible().catch(() => false)) {
+    const dialogText = (await dialog.textContent().catch(() => null))?.trim() ?? '';
+    const okButton = dialog.getByRole('button', { name: 'Ok' });
 
-    logProgress(
-      `ONLYOFFICE configuration save failed${dialogText ? `: ${dialogText}` : ''}`
-    );
-    await clickWithDelay(okButton);
+    if (isSuccessOnlyofficeInfoDialog(dialogText)) {
+      logProgress(
+        `ONLYOFFICE configuration saved with info dialog${dialogText ? `: ${dialogText}` : ''}`
+      );
+    } else {
+      logProgress(
+        `ONLYOFFICE configuration returned dialog${dialogText ? `: ${dialogText}` : ''}`
+      );
+    }
 
+    if (await okButton.isVisible().catch(() => false)) {
+      await okButton.click({ timeout: UI_TIMEOUT });
+      await dialog.waitFor({ state: 'hidden', timeout: UI_TIMEOUT }).catch(() => undefined);
+    }
+  } else {
+    logProgress('ONLYOFFICE configuration saved without visible dialog');
   }
-
-  logProgress('ONLYOFFICE configuration saved without visible error dialog');
 }
 
 async function openFiles(page: Page): Promise<void> {
@@ -240,8 +263,17 @@ async function createAndOpenFile(
 
   await page.waitForTimeout(CLICK_DELAY);
   await clickWithDelay(createButton);
+  await waitForEditorReady(page);
+}
 
-  await page.waitForTimeout(EDITOR_OPEN_DELAY);
+async function waitForEditorReady(page: Page): Promise<void> {
+  logProgress('Waiting for editor to be ready');
+  const editorIframe = page.locator('iframe').first();
+
+  await expect(editorIframe).toBeVisible({ timeout: EDITOR_READY_TIMEOUT });
+  await expect(page.frameLocator('iframe').locator('body')).toBeVisible({
+    timeout: EDITOR_READY_TIMEOUT,
+  });
 }
 
 async function writeDocumentText(page: Page): Promise<void> {
@@ -279,9 +311,37 @@ async function saveIfAvailable(page: Page): Promise<void> {
   const saveButton = page.getByRole('button', { name: /Save/i });
 
   if (await saveButton.isVisible().catch(() => false)) {
-    await saveButton.click();
-    await page.waitForTimeout(CLICK_DELAY);
+    await saveButton.click({ timeout: UI_TIMEOUT });
+    await waitForSaveCompletion(page, saveButton);
   }
+}
+
+async function waitForSaveCompletion(
+  page: Page,
+  saveButton: Locator
+): Promise<void> {
+  logProgress('Waiting for save completion before closing editor');
+
+  const savedStateHints = [
+    page.getByText(/All changes saved/i),
+    page.getByText(/Saved/i),
+    page.getByText(/Document is saved/i),
+  ];
+
+  await Promise.race([
+    saveButton.waitFor({ state: 'hidden', timeout: SAVE_SETTLE_TIMEOUT }),
+    expect(saveButton).toBeDisabled({ timeout: SAVE_SETTLE_TIMEOUT }),
+    ...savedStateHints.map((hint) =>
+      hint.waitFor({ state: 'visible', timeout: SAVE_SETTLE_TIMEOUT })
+    ),
+  ]).catch(async () => {
+    logProgress(
+      'Save completion marker not detected in time; waiting extra delay as fallback'
+    );
+    await page.waitForTimeout(CLICK_DELAY);
+  });
+
+  await page.waitForTimeout(2_000);
 }
 
 async function closeEditorAndReturnToFiles(page: Page): Promise<void> {
