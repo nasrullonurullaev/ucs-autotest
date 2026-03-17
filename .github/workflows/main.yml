@@ -11,17 +11,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  integration-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         scenario:
-          - name: clean-install
-            update_after_install: false
-          - name: update
-            update_after_install: true
+          - clean-install
+          - update
 
     env:
       DO_API: https://api.digitalocean.com/v2
@@ -163,7 +161,7 @@ jobs:
              univention-app info || true"
 
       - name: Enable test appcenter
-        if: ${{ !matrix.scenario.update_after_install }}
+        if: ${{ matrix.scenario == 'clean-install' }}
         env:
           HOST: ${{ steps.wait.outputs.ip }}
           USERNAME: root
@@ -198,7 +196,7 @@ jobs:
              univention-app info || true"
 
       - name: Enable test appcenter and update ONLYOFFICE Docs
-        if: ${{ matrix.scenario.update_after_install }}
+        if: ${{ matrix.scenario == 'update' }}
         env:
           HOST: ${{ steps.wait.outputs.ip }}
           USERNAME: root
@@ -259,7 +257,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts-${{ matrix.scenario.name }}
+          name: playwright-artifacts-${{ matrix.scenario }}
           path: |
             playwright-report
             test-results
@@ -295,5 +293,5 @@ jobs:
 
       - name: Show IP
         run: |
-          echo "Scenario: ${{ matrix.scenario.name }}"
+          echo "Scenario: ${{ matrix.scenario }}"
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
