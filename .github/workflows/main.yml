@@ -18,9 +18,9 @@ jobs:
       fail-fast: false
       matrix:
         scenario:
-          - name: install-from-test-appcenter
+          - name: clean-install
             update_after_install: false
-          - name: install-then-update-from-test-appcenter
+          - name: update
             update_after_install: true
 
     env:
