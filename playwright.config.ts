@@ -27,6 +27,8 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
 
+  globalSetup: './global-setup.ts',
+
   projects: [
     {
       name: 'chromium',
