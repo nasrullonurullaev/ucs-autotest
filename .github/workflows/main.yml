@@ -1,11 +1,25 @@
-name: Deploy from DigitalOcean snapshot
+name: ONLYOFFICE Docs Univention Integration Autotests
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: onlyoffice-univention-integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  deploy:
+  integration-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario:
+          - clean-install
+          - update
 
     env:
       DO_API: https://api.digitalocean.com/v2
@@ -147,6 +161,7 @@ jobs:
              univention-app info || true"
 
       - name: Enable test appcenter
+        if: ${{ matrix.scenario == 'clean-install' }}
         env:
           HOST: ${{ steps.wait.outputs.ip }}
           USERNAME: root
@@ -159,7 +174,8 @@ jobs:
             -o UserKnownHostsFile=/dev/null \
             "$USERNAME@$HOST" \
             "set -euo pipefail; \
-             univention-app dev-use-test-appcenter"
+             univention-app dev-use-test-appcenter; \
+             sleep 180"
 
       - name: Install ONLYOFFICE Docs
         env:
@@ -177,6 +193,27 @@ jobs:
              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
              chmod 600 /root/ucs_admin.pwd; \
              timeout 3600 univention-app install onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
+             univention-app info || true"
+
+      - name: Enable test appcenter and update ONLYOFFICE Docs
+        if: ${{ matrix.scenario == 'update' }}
+        env:
+          HOST: ${{ steps.wait.outputs.ip }}
+          USERNAME: root
+          PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          sshpass -p "$PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USERNAME@$HOST" \
+            "set -euo pipefail; \
+             univention-app dev-use-test-appcenter; \
+             sleep 180; \
+             printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
+             chmod 600 /root/ucs_admin.pwd; \
+             timeout 3600 univention-app upgrade onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd; \
              univention-app info || true"
 
       - name: Wait for web app to be ready
@@ -220,12 +257,41 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-${{ matrix.scenario }}
           path: |
             playwright-report
             test-results
           if-no-files-found: ignore
 
+      - name: Cleanup droplet
+        if: always()
+        env:
+          DO_TOKEN: ${{ secrets.DO_TOKEN }}
+          DROPLET_ID: ${{ steps.create.outputs.droplet_id }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DROPLET_ID:-}" ]; then
+            echo "Droplet ID is empty; skipping cleanup"
+            exit 0
+          fi
+
+          RESPONSE=$(curl -sS -X DELETE \
+            -H "Authorization: Bearer $DO_TOKEN" \
+            "$DO_API/droplets/${DROPLET_ID}" \
+            -w "\n%{http_code}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "404" ]; then
+            echo "Cleanup completed with HTTP $HTTP_CODE"
+            exit 0
+          fi
+
+          echo "Unexpected cleanup response:"
+          echo "$RESPONSE"
+          exit 1
+
       - name: Show IP
         run: |
+          echo "Scenario: ${{ matrix.scenario }}"
           echo "Droplet IP: ${{ steps.wait.outputs.ip }}"
