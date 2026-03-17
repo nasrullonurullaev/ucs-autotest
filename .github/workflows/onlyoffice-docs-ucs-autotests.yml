@@ -240,17 +240,21 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: tests/package-lock.json
 
       - name: Install npm dependencies
+        working-directory: tests
         run: npm ci
 
       - name: Install Playwright and browser dependencies
+        working-directory: tests
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright integration test
         env:
           TEST_HOST: ${{ steps.wait.outputs.ip }}
           DROPLET_PASSWORD: ${{ secrets.DROPLET_PASSWORD }}
+        working-directory: tests
         run: |
           npm run test:e2e
 
@@ -260,8 +264,8 @@ jobs:
         with:
           name: playwright-artifacts-${{ matrix.scenario }}
           path: |
-            playwright-report
-            test-results
+            tests/playwright-report
+            tests/test-results
           if-no-files-found: ignore
 
       - name: Cleanup droplet
