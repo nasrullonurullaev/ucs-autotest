@@ -22,7 +22,7 @@ const USERNAME = 'Administrator';
 const CLICK_DELAY = 10_000;
 const UI_TIMEOUT = 60_000;
 const EDITOR_READY_TIMEOUT = 180_000;
-const SAVE_SETTLE_TIMEOUT = 45_000;
+const AUTOSAVE_WAIT = 5_000;
 const TEST_TIMEOUT = 20 * 60_000;
 
 function logProgress(message: string): void {
@@ -282,7 +282,7 @@ async function writeDocumentText(page: Page): Promise<void> {
 
   await editorFrame.locator('body').click();
   await page.keyboard.type('Playwright test text');
-  await saveIfAvailable(page);
+  await waitForAutosave();
 }
 
 async function writePresentationText(page: Page): Promise<void> {
@@ -291,7 +291,7 @@ async function writePresentationText(page: Page): Promise<void> {
 
   await editorFrame.locator('body').click();
   await page.keyboard.type('Playwright presentation text');
-  await saveIfAvailable(page);
+  await waitForAutosave();
 }
 
 async function writeSpreadsheetText(page: Page): Promise<void> {
@@ -303,45 +303,12 @@ async function writeSpreadsheetText(page: Page): Promise<void> {
   await page.keyboard.press('Control+Home');
   await page.keyboard.type('Playwright spreadsheet text');
   await page.keyboard.press('Enter');
-  await saveIfAvailable(page);
+  await waitForAutosave();
 }
 
-async function saveIfAvailable(page: Page): Promise<void> {
-  logProgress('Trying to save file if Save button is available');
-  const saveButton = page.getByRole('button', { name: /Save/i });
-
-  if (await saveButton.isVisible().catch(() => false)) {
-    await saveButton.click({ timeout: UI_TIMEOUT });
-    await waitForSaveCompletion(page, saveButton);
-  }
-}
-
-async function waitForSaveCompletion(
-  page: Page,
-  saveButton: Locator
-): Promise<void> {
-  logProgress('Waiting for save completion before closing editor');
-
-  const savedStateHints = [
-    page.getByText(/All changes saved/i),
-    page.getByText(/Saved/i),
-    page.getByText(/Document is saved/i),
-  ];
-
-  await Promise.race([
-    saveButton.waitFor({ state: 'hidden', timeout: SAVE_SETTLE_TIMEOUT }),
-    expect(saveButton).toBeDisabled({ timeout: SAVE_SETTLE_TIMEOUT }),
-    ...savedStateHints.map((hint) =>
-      hint.waitFor({ state: 'visible', timeout: SAVE_SETTLE_TIMEOUT })
-    ),
-  ]).catch(async () => {
-    logProgress(
-      'Save completion marker not detected in time; waiting extra delay as fallback'
-    );
-    await page.waitForTimeout(CLICK_DELAY);
-  });
-
-  await page.waitForTimeout(2_000);
+async function waitForAutosave(): Promise<void> {
+  logProgress('Waiting 5 seconds for editor autosave');
+  await new Promise((resolve) => setTimeout(resolve, AUTOSAVE_WAIT));
 }
 
 async function closeEditorAndReturnToFiles(page: Page): Promise<void> {
