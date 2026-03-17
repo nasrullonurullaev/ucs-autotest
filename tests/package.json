@@ -4,7 +4,7 @@
   "description": "ONLYOFFICE Docs integration tests",
   "main": "index.js",
   "scripts": {
-    "test:e2e": "playwright test tests/onlyoffice-docs.spec.ts"
+    "test:e2e": "playwright test onlyoffice-docs.spec.ts"
   },
   "keywords": [],
   "author": "",
