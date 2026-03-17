@@ -250,7 +250,6 @@ async function writeDocumentText(page: Page): Promise<void> {
 
   await editorFrame.locator('body').click();
   await page.keyboard.type('Playwright test text');
-  await page.waitForTimeout(CLICK_DELAY);
   await saveIfAvailable(page);
 }
 
@@ -260,7 +259,6 @@ async function writePresentationText(page: Page): Promise<void> {
 
   await editorFrame.locator('body').click();
   await page.keyboard.type('Playwright presentation text');
-  await page.waitForTimeout(CLICK_DELAY);
   await saveIfAvailable(page);
 }
 
@@ -273,7 +271,6 @@ async function writeSpreadsheetText(page: Page): Promise<void> {
   await page.keyboard.press('Control+Home');
   await page.keyboard.type('Playwright spreadsheet text');
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(CLICK_DELAY);
   await saveIfAvailable(page);
 }
 
