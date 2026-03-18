@@ -43,11 +43,11 @@ jobs:
         id: create
         env:
           DO_TOKEN: ${{ secrets.DO_TOKEN }}
-          DROPLET_NAME: ${{ secrets.DO_DROPLET_NAME }}
-          REGION: ${{ secrets.DO_REGION }}
-          SIZE: ${{ secrets.DO_SIZE }}
           SNAPSHOT_ID: ${{ secrets.DO_SNAPSHOT_ID }}
           DO_SSH_KEY_ID: ${{ secrets.DO_SSH_KEY_ID }}
+          DROPLET_NAME: ${{ vars.DO_DROPLET_NAME }}
+          REGION: ${{ vars.DO_REGION }}
+          SIZE: ${{ vars.DO_SIZE }}
         run: |
           set -euo pipefail
 
