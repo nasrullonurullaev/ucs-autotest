@@ -20,8 +20,16 @@ jobs:
     env:
       DO_API: https://api.digitalocean.com/v2
       SSH_OPTS: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10
+      DO_STATUS_RETRIES: 60
+      SSH_RETRIES: 30
+      WEB_RETRIES: 60
+      RETRY_DELAY_SECONDS: 10
+      UCS_WARMUP_SECONDS: 120
+      TEST_APPCENTER_WARMUP_SECONDS: 180
+      APP_OPERATION_TIMEOUT: 3600
 
     steps:
+      # Repository and tool preparation
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -30,15 +38,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq sshpass
 
+      # Droplet provisioning
       - name: Create droplet from snapshot
         id: create
         env:
           DO_TOKEN: ${{ secrets.DO_TOKEN }}
-          DROPLET_NAME: ${{ secrets.DO_DROPLET_NAME }}
-          REGION: ${{ secrets.DO_REGION }}
-          SIZE: ${{ secrets.DO_SIZE }}
           SNAPSHOT_ID: ${{ secrets.DO_SNAPSHOT_ID }}
           DO_SSH_KEY_ID: ${{ secrets.DO_SSH_KEY_ID }}
+          DROPLET_NAME: ${{ vars.DO_DROPLET_NAME }}
+          REGION: ${{ vars.DO_REGION }}
+          SIZE: ${{ vars.DO_SIZE }}
         run: |
           set -euo pipefail
 
@@ -74,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for i in {1..60}; do
+          for i in $(seq 1 "$DO_STATUS_RETRIES"); do
             RESPONSE=$(curl -sS \
               -H "Authorization: Bearer $DO_TOKEN" \
               "$DO_API/droplets/${DROPLET_ID}")
@@ -89,12 +98,13 @@ jobs:
               exit 0
             fi
 
-            sleep 10
+            sleep "$RETRY_DELAY_SECONDS"
           done
 
           echo "Droplet did not become active in time"
           exit 1
 
+      # Remote host readiness and app installation
       - name: Wait for SSH
         env:
           HOST: ${{ steps.wait.outputs.ip }}
@@ -103,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for i in {1..30}; do
+          for i in $(seq 1 "$SSH_RETRIES"); do
             if sshpass -p "$PASSWORD" ssh \
               $SSH_OPTS \
               "$USERNAME@$HOST" "echo SSH OK"; then
@@ -111,15 +121,15 @@ jobs:
             fi
 
             echo "SSH not ready yet, retry $i"
-            sleep 10
+            sleep "$RETRY_DELAY_SECONDS"
           done
 
           echo "SSH did not become available"
           exit 1
 
-      - name: wait for UCS DNS and services
+      - name: Wait for UCS DNS and services
         run: |
-          sleep 120
+          sleep "$UCS_WARMUP_SECONDS"
 
       - name: Install Nextcloud
         env:
@@ -132,10 +142,10 @@ jobs:
           sshpass -p "$PASSWORD" ssh \
             $SSH_OPTS \
             "$USERNAME@$HOST" \
-            "set -euo pipefail; \
+             "set -euo pipefail; \
              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
              chmod 600 /root/ucs_admin.pwd; \
-             timeout 3600 univention-app install nextcloud --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd"
+             timeout $APP_OPERATION_TIMEOUT univention-app install nextcloud --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd"
 
       # - name: Enable test appcenter
       #   if: ${{ matrix.scenario == 'clean-install' }}
@@ -151,7 +161,7 @@ jobs:
       #       "$USERNAME@$HOST" \
       #       "set -euo pipefail; \
       #        univention-app dev-use-test-appcenter; \
-      #        sleep 180"
+      #        sleep $TEST_APPCENTER_WARMUP_SECONDS"
 
       - name: Install ONLYOFFICE Docs
         env:
@@ -164,10 +174,10 @@ jobs:
           sshpass -p "$PASSWORD" ssh \
             $SSH_OPTS \
             "$USERNAME@$HOST" \
-            "set -euo pipefail; \
+             "set -euo pipefail; \
              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
              chmod 600 /root/ucs_admin.pwd; \
-             timeout 3600 univention-app install onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd"
+             timeout $APP_OPERATION_TIMEOUT univention-app install onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd"
 
       - name: Enable test appcenter and update ONLYOFFICE Docs
         if: ${{ matrix.scenario == 'update' }}
@@ -180,32 +190,34 @@ jobs:
 
           sshpass -p "$PASSWORD" ssh \
             $SSH_OPTS \
-            "$USERNAME@$HOST" \
-            "set -euo pipefail; \
-             univention-app dev-use-test-appcenter; \
-             sleep 180; \
-             printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
-             chmod 600 /root/ucs_admin.pwd; \
-             timeout 3600 univention-app upgrade onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd"
+             "$USERNAME@$HOST" \
+             "set -euo pipefail; \
+              univention-app dev-use-test-appcenter; \
+              sleep $TEST_APPCENTER_WARMUP_SECONDS; \
+              printf '%s' '$PASSWORD' > /root/ucs_admin.pwd; \
+              chmod 600 /root/ucs_admin.pwd; \
+              timeout $APP_OPERATION_TIMEOUT univention-app upgrade onlyoffice-ds --noninteractive --username Administrator --pwdfile /root/ucs_admin.pwd"
 
+      # Application readiness check
       - name: Wait for web app to be ready
         env:
           HOST: ${{ steps.wait.outputs.ip }}
         run: |
           set -euo pipefail
 
-          for i in {1..60}; do
+          for i in $(seq 1 "$WEB_RETRIES"); do
             if curl -k -I --max-time 10 "https://$HOST" >/dev/null 2>&1; then
               echo "Web app is reachable"
               exit 0
             fi
             echo "Web app is not ready yet, retry $i"
-            sleep 10
+            sleep "$RETRY_DELAY_SECONDS"
           done
 
           echo "Web app did not become ready in time"
           exit 1
 
+      # Playwright tests and artifacts
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -239,6 +251,7 @@ jobs:
             tests/test-results
           if-no-files-found: ignore
 
+      # Infrastructure cleanup
       - name: Cleanup droplet
         if: always()
         env:
