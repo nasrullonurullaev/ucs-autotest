@@ -256,31 +256,31 @@ jobs:
             tests/test-results
           if-no-files-found: ignore
 
-      # Infrastructure cleanup
-      - name: Cleanup droplet
-        if: always()
-        env:
-          DO_TOKEN: ${{ secrets.DO_TOKEN }}
-          DROPLET_ID: ${{ steps.create.outputs.droplet_id }}
-        run: |
-          set -euo pipefail
+      # # Infrastructure cleanup
+      # - name: Cleanup droplet
+      #   if: always()
+      #   env:
+      #     DO_TOKEN: ${{ secrets.DO_TOKEN }}
+      #     DROPLET_ID: ${{ steps.create.outputs.droplet_id }}
+      #   run: |
+      #     set -euo pipefail
 
-          if [ -z "${DROPLET_ID:-}" ]; then
-            echo "Droplet ID is empty; skipping cleanup"
-            exit 0
-          fi
+      #     if [ -z "${DROPLET_ID:-}" ]; then
+      #       echo "Droplet ID is empty; skipping cleanup"
+      #       exit 0
+      #     fi
 
-          RESPONSE=$(curl -sS -X DELETE \
-            -H "Authorization: Bearer $DO_TOKEN" \
-            "$DO_API/droplets/${DROPLET_ID}" \
-            -w "\n%{http_code}")
+      #     RESPONSE=$(curl -sS -X DELETE \
+      #       -H "Authorization: Bearer $DO_TOKEN" \
+      #       "$DO_API/droplets/${DROPLET_ID}" \
+      #       -w "\n%{http_code}")
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "404" ]; then
-            echo "Cleanup completed with HTTP $HTTP_CODE"
-            exit 0
-          fi
+      #     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+      #     if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "404" ]; then
+      #       echo "Cleanup completed with HTTP $HTTP_CODE"
+      #       exit 0
+      #     fi
 
-          echo "Unexpected cleanup response:"
-          echo "$RESPONSE"
-          exit 1
+      #     echo "Unexpected cleanup response:"
+      #     echo "$RESPONSE"
+      #     exit 1
