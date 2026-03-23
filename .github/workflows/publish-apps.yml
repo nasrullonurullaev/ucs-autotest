@@ -4,8 +4,8 @@ run-name: Version ${{ github.ref_name }}
 on:
   push:
     tags:
-       - '*'
-    
+      - '*'
+
 jobs:
   check-apps:
     runs-on: ubuntu-latest
