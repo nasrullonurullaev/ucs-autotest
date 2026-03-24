@@ -2,6 +2,7 @@ name: Publish apps
 run-name: Version ${{ github.ref_name }}
 
 on:
+  workflow_dispatch: 
   push:
     tags:
       - '*'
